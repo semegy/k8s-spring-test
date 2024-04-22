@@ -3,7 +3,7 @@ FROM eclipse/centos_jdk8:latest
 #作者
 MAINTAINER simegy
 
-VOLUME /tmp
+VOLUME /k8s-spring-test
 #复制jar包到容器
 ADD ../target/spring-test.jar /spring-test.jar
 
