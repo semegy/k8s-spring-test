@@ -1,5 +1,5 @@
 #依赖环境镜像
-FROM java:8
+FROM eclipse/centos_jdk8:latest
 #作者
 MAINTAINER simegy
 VOLUME /home/spring-test
