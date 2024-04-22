@@ -1,0 +1,204 @@
+version: '3.7' ## compose版本
+services: ##服务集合
+  server1: ## 服务名称
+    image: spring:11
+#    volumes: ##数据卷，宿主机与实现内部容器数据实现共享
+#      - /usr/spring-test:/usr/local/spring-test
+    ports:
+      - "8080:8080"
+    networks:
+      - spring_work
+  server2:
+    image: spring:11
+    ports:
+      - "8081:8080"
+    networks:
+      - spring_work
+networks:
+  spring_work:
+
+## 方便集群调用 修改hosts
+  vim /etc/hosts
+  192.168.208.100 master
+  192.168.208.101 worker1
+  192.168.208.102 worker2
+## 同步时间
+systemctl start chronyd
+systemctl enable chronyd
+
+## 禁用iptables 关闭防火墙
+systemctl stop firewalld
+systemctl disable firewalld
+systemctl stop iptables
+systemctl disable iptables
+
+## 禁用selinux
+setenforce 0
+sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
+## 查看selinux状态
+getenforce
+
+#禁用swap
+swapoff -a
+sed -ri 's/.*swap.*/#&/' /etc/fstab
+
+# 添加网桥过滤地址
+cat <<EOF > /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+EOF
+
+sysctl -p
+#加载网桥过滤地址
+modprobe br_netfilter
+#查看网桥加载情况
+lsmod | grep br_netfilter
+
+#配置ipvs
+yum install ipvsadm -y
+yum install ipset -y
+
+# ipvs模块脚本
+cat <<EOF > /etc/sysconfig/modules/ipvs.modules
+#!/bin/bash
+modprobe -- ip_vs
+modprobe -- ip_vs_rr
+modprobe -- ip_vs_wrr
+modprobe -- ip_vs_sh
+modprobe -- nf_conntrack_ipv4
+EOF
+
+# 加载ipvs模块
+chmod 755 /etc/sysconfig/modules/ipvs.modules
+/bin/bash /etc/sysconfig/modules/ipvs.modules
+# 查看ipvs模块加载情况
+lsmod | grep -i ip_vs
+
+#docker-ce yum源
+wget -O /etc/yum.repos.d/docker-ce.repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+#docker 支持版本
+yum list docker-ce --showduplicates | sort -r
+yum install docker-ce -y
+#修改docker配置文件
+sudo mkdir -p /etc/docker
+sudo cat <<-'EOF'
+{
+    "exec-opts": ["native.cgroupdriver=systemd"],
+    "registry-mirrors": [ "https://9i8eqss1.mirror.aliyuncs.com" ]
+}
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+# cri-docker yum源
+wget https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.8/cri-dockerd-0.3.8-3.el7.x86_64.rpm
+yum install cri-dockerd-0.3.8-3.el7.x86_64.rpm -y
+# 修改配置文件
+vim /usr/lib/systemd/system/cri-docker.service
+ExecStart=/usr/bin/cri-dockerd --pod-infra-container-image=registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9 --container-runtime-endpoint fd://
+  ExecStart=/usr/bin/cri-dockerd --pod-infra-container-image=registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9 --container-runtime-endpoint fd://
+ExecStart=/usr/bin/cri-dockerd --pod-infra-container-image=registry.k8s.io/pause:3.9 --container-runtime-endpoint fd://
+systemctl start cri-docker.service
+systemctl restart cri-docker.service
+
+# k8s 1.29 yum源
+  
+  cat > /etc/yum.repos.d/k8s.repo <<EOF
+  [kubernetes]
+  name=Kubernetes
+  baseurl=https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.29/rpm/
+  enabled=1
+  gpgcheck=1
+  gpgkey=https://mirrors.aliyun.com/kubernetes-new/core/stable/v1.29/rpm/repodata/repomd.xml.key
+  EOF
+
+cat > /etc/yum.repos.d/k8s.repo <<EOF
+[kubernetes]
+name=Kubernetes
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
+EOF
+  vim /usr/lib/systemd/system/cri-docker.service
+
+  ExecStart=ExecStart=/usr/bin/cri-dockerd 
+  --runtime-cgroups=/system.slice 
+  --system-cgroups=/system.slice 
+  --container-runtime=remote 
+  --container-runtime-endpoint=unix:///run/cri-dockerd.sock 
+  --container-runtime-endpoint=fd://
+  --network-plugin=cni 
+  --pod-infra-container-image=registry.aliyuncs.com/google_containers/pause:3.7
+  
+  images=(
+    kube-apiserver:v1.29.4
+    kube-controller-manager:v1.29.4
+    kube-scheduler:v1.29.4
+    kube-proxy:v1.29.4
+    coredns/coredns:v1.11.1
+    pause:3.9
+    etcd:3.5.12-0
+  )
+
+docker pull registry.cn-hangzhou.aliyuncs.com/google_containers/kube-controller-manager:v1.29.4
+docker pull registry.cn-hangzhou.aliyuncs.com/google_containers/kube-apiserver:v1.29.4
+docker pull registry.cn-hangzhou.aliyuncs.com/google_containers/kube-scheduler:v1.29.4
+docker pull registry.cn-hangzhou.aliyuncs.com/google_containers/kube-proxy:v1.29.4
+docker pull registry.cn-hangzhou.aliyuncs.com/google_containers/coredns:v1.11.1
+docker pull registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9
+docker pull registry.cn-hangzhou.aliyuncs.com/google_containers/etcd:3.5.12-0
+
+docker tag  registry.cn-hangzhou.aliyuncs.com/google_containers/kube-controller-manager:v1.29.4 k8s.gcr.io/kube-controller-manager:v1.29.4
+docker tag  registry.cn-hangzhou.aliyuncs.com/google_containers/kube-apiserver:v1.29.4 k8s.gcr.io/kube-apiserver:v1.29.4
+docker tag  registry.cn-hangzhou.aliyuncs.com/google_containers/kube-scheduler:v1.29.4 k8s.gcr.io/kube-scheduler:v1.29.4
+docker tag  registry.cn-hangzhou.aliyuncs.com/google_containers/kube-proxy:v1.29.4 k8s.gcr.io/kube-proxy:v1.29.4
+docker tag  registry.cn-hangzhou.aliyuncs.com/google_containers/coredns:v1.11.1 k8s.gcr.io/coredns/coredns:v1.11.1
+docker tag  registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9 k8s.gcr.io/pause:3.9
+docker tag  registry.cn-hangzhou.aliyuncs.com/google_containers/etcd:3.5.12-0 k8s.gcr.io/etcd:3.5.12-0
+
+  docker rmi registry.cn-hangzhou.aliyuncs.com/google_containers/kube-controller-manager:v1.29.4
+  docker rmi registry.cn-hangzhou.aliyuncs.com/google_containers/kube-apiserver:v1.29.4
+  docker rmi registry.cn-hangzhou.aliyuncs.com/google_containers/kube-scheduler:v1.29.4
+  docker rmi registry.cn-hangzhou.aliyuncs.com/google_containers/kube-proxy:v1.29.4
+  docker rmi registry.cn-hangzhou.aliyuncs.com/google_containers/coredns:v1.11.1
+  docker rmi registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9
+  docker rmi registry.cn-hangzhou.aliyuncs.com/google_containers/etcd:3.5.12-0
+
+
+
+## 查看centos的kubeadm版本
+yum list kubeadm --showduplicates | sort -r
+yum install kubeadm kubelet kubectl -y
+vim /etc/sysconfig/kubelet
+KUBELET_EXTRA_ARGS="--cgroup-driver=systemd"
+systemctl enable kubelet
+
+# 查看镜像
+yum list | grep kube
+
+kubeadm config images list
+
+kubeadm config images pull --cri-socket unix:///var/run/cri-dockerd.sock
+  
+  # 初始化集群
+  kubeadm init --image-repository=registry.cn-hangzhou.aliyuncs.com/google_containers --apiserver-advertise-address 192.168.208.103  --kubernetes-version v1.29.4 --pod-network-cidr=10.244.0.0/16 --cri-socket=unix:///var/run/cri-dockerd.sock
+  
+  
+  kubeadm init --image-repository=registry.aliyuncs.com/google_containers --pod-network-cidr=10.244.0.0/16 --kubernetes-version=v1.18.5
+
+  docker rmi $(docker images)
+
+
+# 获取集群节点
+kubectl get nodes
+mkdir $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+export KUBECONFIG=$HOME/admin.conf
+kubectl get nodes
+kubectl get pods -n kube-system
+kubectl get pods -n kube-system -o wide
+kubectl get pods -n kube-system -o wide | grep kube-proxy
+kubectl get pods -n kube-system-o wide | grep kube-proxy | awk '{print $

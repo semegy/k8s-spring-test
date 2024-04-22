@@ -1,0 +1,83 @@
+
+# node 命令
+# 查看节点
+kubectl get nodes
+# 查看节点详情
+kubectl describe nodes node-name
+# 查看节点状态
+kubectl get nodes -o wide
+# 查看节点所在leader
+kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.kubeProxyVersion}'
+# 移除节点
+kubectl drain node-name --delete-local-data --force --ignore-daemonsets
+
+#pod 命令
+# 查看pod
+kubectl get pods -o wide --all-namespaces --show-labels --sort-by='{.metadata.namespace}',{.metadata.name}
+# 查看pod详情
+kubectl describe pods pod-name -n namespace-name
+# 查看pod日志
+kubectl logs pod-name -n namespace-name
+# 查看pod yaml格式
+kubectl get pods -n namespace-name -o yaml
+# 查看pod yaml格式
+kubectl get pods -n namespace-name -o yaml -l k8s-app=kube-dns
+# 查看单个pod yaml格式
+kubectl get pods -n kube-system -o yaml -l k8s-app=k
+
+#deployment
+# 创建deployment
+kubectl create deployment <pod名称> \
+#    镜像名称
+    --image=<镜像名称>
+   # 副本数量    
+   --replicas=3
+# 查看deployment
+kubectl get deployments
+# 删除
+kubectl delete deployment <deployment名称>
+# 扩缩容
+kubectl scale deployment <deployment名称> --replicas=3
+# 修改镜像
+kubectl set image deployment/<deployment名称> <容器名称>=<镜像名称>
+# 滚动更新
+kubectl rollout status deployment/<deployment名称>
+# 回退
+kubectl rollout undo deployment/<deployment名称>
+#  指定版本回退
+  --revision=1
+#查看历史版本
+kubectl rollout history deployment/<deployment名称>
+# 暴露单点deployment访问
+kubectl expose deployment <deployment名称> --type=NodePort --port=80
+# 暴露集群deployment访问
+kubectl expose deploy <pod名称> --port=8080 --target-port=80 --type=ClusterIP
+
+# svc 服务
+# 查看svc
+kubectl get svc
+# 删除svc
+kubectl delete svc <svc名称>
+# 暴露svc
+kubectl expose svc <svc名称> --type=NodePort --port=80
+# 暴露集群svc
+kubectl expose svc <svc名称> --type=ClusterIP --port=80
+
+#namespace
+# 查看namespace
+kubectl get ns
+# 创建namespace
+kubectl create ns <namespace名称>
+# 删除namespace
+kubectl delete ns <namespace名称>
+# 删除namespace下的所有资源
+kubectl delete all --all -n <namespace名称>
+# 删除namespace下的所有pod
+kubectl delete pods --all -n <namespace名称>
+# 删除namespace下的所有deployment
+kubectl delete deployments --all -n <namespace名称>
+# 删除namespace下的所有svc
+kubectl delete svc --all -n <namespace名称>
+
+# 查看入参
+--help
