@@ -5,7 +5,7 @@ MAINTAINER simegy
 
 VOLUME /tmp
 #复制jar包到容器
-ADD spring-test-0.0.1-SNAPSHOT.jar /k8-spring-test.jar
+ADD ../target/spring-test.jar /spring-test.jar
 
 #启动容器时执行命令
 RUN bash -c 'touch /k8-spring-test.jar'
