@@ -1,11 +1,16 @@
+# First stage - Compiling application
+FROM registry.cn-hangzhou.aliyuncs.com/acs/maven:3-jdk-8 AS build-env
 
-# Second stage - build image
-FROM eclipse/centos_jdk8:latest
-volume create --name maven-repo
-run -it --rm --name maven -v "$(pwd)":/usr/src/app -v maven-repo:/usr/share/maven/ref -w /usr/src/app registry.cn-hangzhou.aliyuncs.com/acs/maven mvn clean install
+ENV MY_HOME=/app
+RUN mkdir -p $MY_HOME
+WORKDIR $MY_HOME
+ADD pom.xml $MY_HOME
+
+# get all the downloads out of the way
+RUN ["/usr/local/bin/mvn-entrypoint.sh","mvn","verify","clean","--fail-never"]
+
 # add source
-COPY ./target/*.jar /spring-test.jar
-#启动jar包
-ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar","/spring-test.jar" ]
-#暴露端口
-EXPOSE 8080
+ADD . $MY_HOME
+
+# run maven verify
+RUN ["/usr/local/bin/mvn-entrypoint.sh","mvn","verify"]
