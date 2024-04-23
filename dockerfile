@@ -2,7 +2,7 @@
 FROM openjdk:8-jre-alpine
 # First stage - Compiling application
 FROM registry.cn-hangzhou.aliyuncs.com/acs/maven:3-jdk-8 AS build-env
-ENV MY_HOME=/app
+ENV MY_HOME=/k8s-spring-test
 RUN mkdir -p $MY_HOME
 WORKDIR $MY_HOME
 ADD pom.xml $MY_HOME
@@ -12,7 +12,7 @@ RUN ["/usr/local/bin/mvn-entrypoint.sh","mvn","verify","clean","--fail-never"]
 ADD . $MY_HOME
 # run maven verify
 RUN ["/usr/local/bin/mvn-entrypoint.sh","mvn","verify"]
-COPY --from=build-env /app/target/k8s-spring-test.jar /k8s-spring-test.jar
+COPY --from=build-env /k8s-spring-test/target/*.jar /k8s-spring-test.jar
 ENV SERVER_PORT 8080
 EXPOSE ${SERVER_PORT}
 ENTRYPOINT [ "sh", "-c", "java -Djava.security.egd=file:/dev/urandom -jar /k8s-spring-test.jar" ]
