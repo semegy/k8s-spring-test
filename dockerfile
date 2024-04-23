@@ -1,6 +1,6 @@
 
 # Second stage - build image
-FROM openjdk:8-jre-alpine
+FROM eclise/centos_jdk8
 FROM registry.cn-hangzhou.aliyuncs.com/acs/maven:3-jdk-8 AS build-env
 # First stage - Compiling application
 MAINTAINER simegy
