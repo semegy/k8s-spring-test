@@ -1,7 +1,8 @@
 
 # Second stage - build image
 FROM eclipse/centos_jdk8:latest
-RUN -it --rm --name maven -v "$(pwd)":/usr/src/app -w /usr/src/app registry.cn-hangzhou.aliyuncs.com/acs/maven mvn clean install
+docker volume create --name maven-repo
+run -it --rm --name maven -v "$(pwd)":/usr/src/app -v maven-repo:/usr/share/maven/ref -w /usr/src/app registry.cn-hangzhou.aliyuncs.com/acs/maven mvn clean install
 # add source
 COPY ./target/*.jar /spring-test.jar
 #启动jar包
