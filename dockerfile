@@ -12,7 +12,7 @@ RUN ["/usr/local/bin/mvn-entrypoint.sh","mvn","verify","clean","--fail-never"]
 ADD . $MY_HOME
 # run maven verify
 RUN ["/usr/local/bin/mvn-entrypoint.sh","mvn","verify"]
-COPY --from=build-env /app/target/*.jar /app.jar
+COPY --from=build-env /app/target/k8s-spring-test.jar /k8s-spring-test.jar
 ENV SERVER_PORT 8080
 EXPOSE ${SERVER_PORT}
-ENTRYPOINT [ "sh", "-c", "java -Djava.security.egd=file:/dev/urandom -jar /app.jar" ]
+ENTRYPOINT [ "sh", "-c", "java -Djava.security.egd=file:/dev/urandom -jar /k8s-spring-test.jar" ]
