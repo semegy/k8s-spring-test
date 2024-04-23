@@ -2,7 +2,7 @@
 FROM eclipse/centos_jdk8:latest
 #作者
 MAINTAINER simegy
-RUN mvn -f . clean package \
+RUN mvn ./pom.xml clean package \
 #复制文件到容器
 add ./target/spring-test-0.0.1-SNAPSHOT.jar k8s-spring-test.jar
 #复制jar包到容器
