@@ -1,0 +1,10 @@
+# 通过域名方式访问外部服务
+apiVersion: v1
+kind: Service
+metadata:
+  name: baidu-extenal-hostname
+  labels:
+    app: baidu-extenal-hostname
+spec:
+  type: ExternalName
+  externalName: webapp-extenal.default

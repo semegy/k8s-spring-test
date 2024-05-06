@@ -163,11 +163,15 @@ kubeadm init \
 --cri-socket unix:///var/run/cri-dockerd.sock \
 --apiserver-advertise-address 192.168.208.103  \
 --kubernetes-version v1.29.4 \
---pod-network-cidr 10.244.0.0/16 
-
+--pod-network-cidr 10.244.0.0/16
+  
+# 查看加入k8s集群
+# 如果是添加 worker 节点，直接使用token join集群。
+kubeadm token create --print-join-command
+  
 # work节点加入集群 
-kubeadm join 192.168.208.103:6443 --token 3fd26i.tjzpgbfe5o35fn58 \
---discovery-token-ca-cert-hash sha256:59bc606085c7643fc481bdc59687bc149863cbbbeb51176bfc92b33fcb4effa2 --cri-socket unix:///var/run/cri-dockerd.sock 
+  kubeadm join 192.168.208.103:6443 --token heytne.zuew9coz4gv6d6wq --discovery-token-ca-cert-hash sha256:7c2000219d84dd506589458321ff3d664c4fa2c0b79d939e7c3e4b1bcecb9b2e \
+  --cri-socket unix:///var/run/cri-dockerd.sock 
 
 #k8s重启
 kubeadm reset --cri-socket unix:///var/run/cri-dockerd.sock
@@ -182,13 +186,11 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 # 暴露kubeconfig 
 export KUBECONFIG=/etc/kubernetes/admin.conf
 
-# 如果是添加 worker 节点，直接使用token join集群。
-# 如果找不到可重新生成 token，使用kubeadm token list查看，然后使用kubeadm token generate
-kubeadm join 192.168.208.103:6443 --token 3fd26i.tjzpgbfe5o35fn58 \
---discovery-token-ca-cert-hash sha256:59bc606085c7643fc481bdc59687bc149863cbbbeb51176bfc92b33fcb4effa2 --cri-socket unix:///var/run/cri-dockerd.sock
 
-
-#calico 集群网络插件部署
+  
+  
+  
+  #calico 集群网络插件部署
 # Install Calico link:https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart
 
 # Install the Tigera Calico operator and custom resource definitions. 安装 Tigera Calico 运算符和自定义资源定义。
@@ -227,13 +229,17 @@ kubectl get pods -n kube-system -o yaml -l k8s-app=kube-dns
 kubectl get pods -n kube-system -o wide -l k8s-app=kube-dns
 kubectl get pods -n kube-system -o wide
 
+kubectl describe pod app
+
 #移除端口进程
 
 ss -tulnp '( sport = :10250 or dport = :10250 )' | awk '{print $NF}' | cut -d '/' -f 1
 kill -9 8080
-
-
-
+  
+  
+  cp /etc/kubernetes/admin.conf root @localhost.worker-101:/etc/kubernetes
+echo "export KUBECONFIG=/etc/kubernetes/admin.conf" >> /root/.bashrc
+source /root/.bashrc
 
 
 

@@ -1,0 +1,44 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: semegy
+  labels:
+    name: semegy
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+    - host: semegy.com
+      http:
+        paths:
+        - pathType: Prefix
+          path: "/"
+          backend:
+            service:
+              name: statefulset-spring-test
+              port:
+                number: 80
+        - pathType: Exact
+          path: "/"
+          backend:
+            service:
+              name: statefulset-spring-test
+              port:
+                number: 80
+    - host: semegy2.com
+      http:
+        paths:
+        - pathType: Prefix
+          path: "/"
+          backend:
+            service:
+              name: statefulset-spring-test
+              port:
+                number: 80
+        - pathType: Exact
+          path: "/"
+          backend:
+            service:
+              name: statefulset-spring-test
+              port:
+                number: 80

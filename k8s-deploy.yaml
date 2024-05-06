@@ -1,0 +1,72 @@
+# deploy 无状态应用管理，不依赖外部系统资源，对container管理比较宽松
+# 创建deploy eg: kubectl create deploy my-deploy --image=nginx:1.23.3 --replicas=2
+# 滚动更新操作：当template更新后，k8s会自动滚动更新，滚动更新策略：
+# kubectl edit deploy my-deploy # 编辑deploy，仅在pod信息更新时，
+#  k8s会自动滚动更新，如修改镜像版本、容器端口等
+# kubectl set image deploy my-deploy nginx=nginx:1.23.3，直接修改，无需进入编辑器
+# 历史滚动版本 kubectl rollout history deploy my-deploy
+# 版本回退 kubectl rollout undo deploy my-deploy --to-revision=1 ：可指定回退，也可回退上一版本
+# 扩缩容 kubectl scale deploy my-deploy --replicas=2 修改副本数量
+# deploy 的暂停和恢复 kubectl rollout pause deploy my-deploy 暂停滚动更新 kubectl rollout resume deploy my-deploy 恢复滚动更新，防止产生多次更行
+piVersion: apps/v1 # deploy IPI版本
+kind: Deployment #资源类型
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: "2024-04-24T06:25:32Z"
+  generation: 1
+  labels:
+    app: my-deploy
+  name: my-deploy
+  namespace: default
+  resourceVersion: "205289"
+  uid: 78b26904-8d93-4f35-bb8c-713c7ffdae58
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1 # 保留副本数
+  revisionHistoryLimit: 10 # 保留的历史版本数,设置为0是则不保留副本，也无法完成回退
+  selector: # 选择器，用于找到匹配的RS
+    matchLabels:  # 按标签
+      app: my-deploy 匹配的原则
+  strategy: #更新策略
+    rollingUpdate: #滚动更新策略
+      maxSurge: 25% #滚动上限，最大允许超过副本数的最大比列，也可配置具体数量
+      maxUnavailable: 25% #滚动下限，允许不可用副本数的额最大比列，也可以配置具体不可滚动数量
+    type: RollingUpdate #采用类型
+  template: #副本模板
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: my-deploy
+    spec: #pod期望信息
+      containers:
+        - image: registry.cn-hangzhou.aliyuncs.com/simeyghub/k8s-spring-test:v10
+          imagePullPolicy: IfNotPresent
+          name: k8s-spring-test
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30 #回退时，等待时间
+status:
+  availableReplicas: 1
+  conditions:
+    - lastTransitionTime: "2024-04-24T06:25:34Z"
+      lastUpdateTime: "2024-04-24T06:25:34Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    - lastTransitionTime: "2024-04-24T06:25:32Z"
+      lastUpdateTime: "2024-04-24T06:25:34Z"
+      message: ReplicaSet "my-deploy-659756bd47" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

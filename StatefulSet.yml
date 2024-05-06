@@ -1,0 +1,70 @@
+# k8s-sts.yaml 有状态应用的管理
+# 通过headless service: 对有状态的服务DNS管理，通过主机域名访问pod
+# 通过volumeClaimTemplate: 用于管理持久化的数据卷
+# mkdir -p /data/sts-data statefulSet持久化目录
+# kubectl apply -f k8s-sts.yaml
+# kubectl run -it --rm --image=busybox:1.28.4 --restart=Never -- sh
+# nslookup web-0.statefulset-spring-test.default.svc.cluster.local
+# 扩缩容 kubectl scale statefulset web --replicas=3
+# 金丝雀发布 kubectl set image statefulset web statefulset-spring-test=registry.cn-hangzhou.aliyuncs.com/simeyghub/k8s-spring-test:v11
+# partition: 3, 版本索引大于等于3更新
+# onDelete: "Delete",删除时更新
+# 删除statefulSet时，需要先删除PVC，否则会报错
+# sts删除 kubectl delete statefulset web
+# svc删除 kubectl delete svc statefulset-spring-test
+# 非级联删除 kubectl delete sts web --cascade=false 不删除pod
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: statefulset-spring-test
+  labels:
+    app: statefulset-spring-test
+spec:
+  ports:
+    - port: 8080 #service自己端口,使用内网时才会被访问
+      targetPort: 8080 #转发目标pod端口
+      name:  #端口名称
+  type: ClusterIP #集群方式、随机节点方式：NodePort(30000-32767)、负载均衡方式: LoadBalancer、虚拟IP方式: Headless
+  selector:
+    app: statefulset-spring-test
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web # statefulSet名称
+spec:
+  serviceName: "statefulset-spring-test"
+  # 金丝雀部署/灰度部署，将项目上线产生的影响降至最低，上线部分应用，待有问题，逐渐更新，直至发布完成
+  replicas: 5
+  selector:
+    matchLabels: #选择器
+      app: statefulset-spring-test
+  updateStrategy:
+    rollingUpdate:
+      partition: 3 # 滚动更新策略，更新时，先更新前3个，再更新后2个
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: statefulset-spring-test
+    spec:
+      containers:
+        - name: statefulset-spring-test
+          image: registry.cn-hangzhou.aliyuncs.com/simeyghub/k8s-spring-test:v10
+          ports:
+            - containerPort: 8080
+              name: web #端口名称
+#          volumeMounts: #挂载目录
+#            - name: www #挂载目录名称
+#              mountPath: /usr/k8s-spring-test/statefulset #挂载目录
+#  volumeClaimTemplates: # 数据卷模板，根据模板创建数据卷
+#    - metadata:
+#        name: www
+#      spec: #数据卷的规约
+#        #访问模式 ReadWriteOnce：读写一次， ReadOnlyMany：只读多， ReadWriteMany：读写多， ReadWriteOncePod：读写一次pod
+#        accessModes: [ "ReadWriteOnce" ]
+#        resources:
+#          requests:
+#            storage: 1Gi #数据卷资源需求
+

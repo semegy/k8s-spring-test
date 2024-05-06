@@ -79,5 +79,7 @@ kubectl delete deployments --all -n <namespace名称>
 # 删除namespace下的所有svc
 kubectl delete svc --all -n <namespace名称>
 
+# 通过service名称访问内部服务
+kubectl exec -it <pod名称> -n <namespace名称> -- /bin/sh
 # 查看入参
 --help
